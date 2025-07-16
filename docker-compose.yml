@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  foundry:
+    image: ghcr.io/foundry-rs/foundry:stable
+    container_name: foundry-dev
+    working_dir: /app
+    volumes:
+      # Mount the current directory to /app in the container
+      - .:/app
+      # Mount foundry cache to persist dependencies
+      - foundry_cache:/root/.cache
+      # Mount foundry config to persist settings
+      - foundry_config:/root/.config
+    environment:
+      - FOUNDRY_PROFILE=default
+    ports:
+      # Expose Anvil RPC port
+      - "8545:8545"
+      # Expose Anvil WebSocket port
+      - "8546:8546"
+    command: >
+      sh -c "
+        # Initialize foundry if not already initialized
+        if [ ! -f foundry.toml ]; then
+          forge init --no-commit;
+        fi;
+        # Keep container running
+        tail -f /dev/null
+      "
+    stdin_open: true
+    tty: true
+
+  # Optional: Add a separate service for running Anvil (local Ethereum node)
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:stable
+    container_name: anvil-node
+    ports:
+      - "8545:8545"
+      - "8546:8546"
+    command: >
+      anvil
+        --host 0.0.0.0
+        --port 8545
+        --accounts 10
+        --balance 10000
+        --gas-limit 30000000
+        --gas-price 1000000000
+        --block-time 2
+        --chain-id 31337
+    profiles:
+      - anvil-only
+
+volumes:
+  foundry_cache:
+    driver: local
+  foundry_config:
+    driver: local
+
+networks:
+  default:
+    name: foundry-network 
