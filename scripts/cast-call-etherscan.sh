@@ -18,7 +18,9 @@ FROM_ADDRESS=""  # Replace with your from address
 RPC_URL=""  # Replace with your RPC URL
 
 # Etherscan configuration
-ETHERSCAN_API_KEY=""  # Replace with your Etherscan API key
+# Ignore if you don't have one
+# Replace with your Etherscan API key
+ETHERSCAN_API_KEY="" 
 
 # =============================================================================
 # SCRIPT LOGIC - Don't edit below this line unless you know what you're doing
@@ -58,10 +60,6 @@ if [[ "$CONTRACT_ADDRESS" == "" ]]; then
     print_warning "Using default contract address. Please update CONTRACT_ADDRESS in the script."
 fi
 
-if [[ "$ETHERSCAN_API_KEY" == "YOUR_ETHERSCAN_API_KEY" ]]; then
-    error_exit "Please set your Etherscan API key in the ETHERSCAN_API_KEY variable"
-fi
-
 # Validate Ethereum address format (basic check)
 if [[ ! "$CONTRACT_ADDRESS" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
     error_exit "Invalid contract address format: $CONTRACT_ADDRESS"
@@ -90,7 +88,10 @@ fi
 CAST_CMD="cast call --trace $CONTRACT_ADDRESS '$FUNCTION_CALLDATA'"
 
 # Add contract ABI for better decoding
-CAST_CMD="$CAST_CMD --etherscan-api-key $ETHERSCAN_API_KEY"
+# Check if Etherscan API key is set
+if [[ -n "$ETHERSCAN_API_KEY" ]]; then
+    CAST_CMD="$CAST_CMD --etherscan-api-key $ETHERSCAN_API_KEY"
+fi
 
 # Add from and rpc-url parameters
 CAST_CMD="$CAST_CMD --from $FROM_ADDRESS --rpc-url $RPC_URL"
