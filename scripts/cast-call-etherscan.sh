@@ -1,26 +1,31 @@
 #!/bin/bash
 
 # Foundry Cast Call Script with Etherscan ABI fetching
-# Edit the variables below to customize the call
+# Loads configuration from .env file
 
 set -e
 
 # =============================================================================
-# CONFIGURATION - Edit these values as needed
+# LOAD CONFIGURATION FROM .env
 # =============================================================================
 
-# Contract configuration
-CONTRACT_ADDRESS=""  # Replace with your contract address
-FUNCTION_CALLDATA=""
+# Find project root (parent directory of scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+ENV_FILE="$PROJECT_ROOT/.env"
 
-# Network configuration
-FROM_ADDRESS=""  # Replace with your from address
-RPC_URL=""  # Replace with your RPC URL
+# Check if .env exists, fallback to .env.example
+if [[ ! -f "$ENV_FILE" ]]; then
+    ENV_FILE="$PROJECT_ROOT/.env.example"
+    if [[ ! -f "$ENV_FILE" ]]; then
+        echo "Error: .env file not found. Please create one from .env.example"
+        exit 1
+    fi
+    echo "Warning: Using .env.example as fallback. Please copy it to .env"
+fi
 
-# Etherscan configuration
-# Ignore if you don't have one
-# Replace with your Etherscan API key
-ETHERSCAN_API_KEY="" 
+# Load environment variables from .env
+export $(grep -v '^#' "$ENV_FILE" | grep -v '^$' | xargs)
 
 # =============================================================================
 # SCRIPT LOGIC - Don't edit below this line unless you know what you're doing
@@ -56,8 +61,16 @@ print_warning() {
 
 
 # Validate configuration
-if [[ "$CONTRACT_ADDRESS" == "" ]]; then
-    print_warning "Using default contract address. Please update CONTRACT_ADDRESS in the script."
+if [[ -z "$CONTRACT_ADDRESS" ]]; then
+    error_exit "CONTRACT_ADDRESS not set in .env file"
+fi
+
+if [[ -z "$FROM_ADDRESS" ]]; then
+    error_exit "FROM_ADDRESS not set in .env file"
+fi
+
+if [[ -z "$RPC_URL" ]]; then
+    error_exit "RPC_URL not set in .env file"
 fi
 
 # Validate Ethereum address format (basic check)
@@ -70,11 +83,15 @@ if [[ ! "$FROM_ADDRESS" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
 fi
 
 # Print configuration
-echo -e "${BLUE}=== Foundry Cast Call Configuration (Etherscan ABI) ===${NC}"
+echo -e "${BLUE}=== Foundry Cast Call Configuration ===${NC}"
 echo "From Address: $FROM_ADDRESS"
 echo "Contract Address: $CONTRACT_ADDRESS"
-echo "Function Call Data: $FUNCTION_CALLDATA"
 echo "RPC URL: $RPC_URL"
+if [[ -n "$ETHERSCAN_API_KEY" ]]; then
+    echo "Etherscan API: Enabled"
+else
+    echo "Etherscan API: Disabled"
+fi
 echo ""
 
 # Check if Docker container is running
@@ -87,8 +104,7 @@ fi
 # Build the cast call command
 CAST_CMD="cast call --trace $CONTRACT_ADDRESS '$FUNCTION_CALLDATA'"
 
-# Add contract ABI for better decoding
-# Check if Etherscan API key is set
+# Add block explorer API for better decoding
 if [[ -n "$ETHERSCAN_API_KEY" ]]; then
     CAST_CMD="$CAST_CMD --etherscan-api-key $ETHERSCAN_API_KEY"
 fi
